@@ -27,6 +27,8 @@ npm run build    # 生产构建
 npm run verify   # 类型检查 + 74 项纯逻辑验证 + 36 项 DOM 冒烟 + 构建
 ```
 
+检查脚本兼容 Node 20 与 Node 22（Node 22 的 `navigator`/`localStorage` 为只读 getter 全局，注入 jsdom 对象时使用 defineProperty 回退，两版表现一致）。
+
 ## 代码结构
 
 - `src/types.ts`：领域模型与异常状态机（合法流转表）

@@ -4,25 +4,45 @@ import { JSDOM } from "jsdom";
 
 const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost/" });
 const w = dom.window;
-(globalThis as Record<string, unknown>).window = w;
-(globalThis as Record<string, unknown>).document = w.document;
-(globalThis as Record<string, unknown>).navigator = w.navigator;
-(globalThis as Record<string, unknown>).localStorage = w.localStorage;
-(globalThis as Record<string, unknown>).HTMLElement = w.HTMLElement;
-(globalThis as Record<string, unknown>).Element = w.Element;
-(globalThis as Record<string, unknown>).Node = w.Node;
-(globalThis as Record<string, unknown>).SVGElement = w.SVGElement;
-(globalThis as Record<string, unknown>).MouseEvent = w.MouseEvent;
-(globalThis as Record<string, unknown>).Event = w.Event;
-(globalThis as Record<string, unknown>).CustomEvent = w.CustomEvent;
-(globalThis as Record<string, unknown>).requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0);
-(globalThis as Record<string, unknown>).cancelAnimationFrame = (id: number) => clearTimeout(id);
+
+/**
+ * 把 jsdom 的对象注入到 Node 全局。
+ * Node 20 没有全局 navigator，直接赋值即可；Node 21+ 的 navigator 是只带 getter
+ * 的惰性全局（Node 22 同样如此），直接赋值会抛
+ * "Cannot set property navigator of #<Object> which has only a getter"，
+ * 因此失败时回退到 defineProperty 覆盖。两版 Node 行为统一。
+ */
+function setGlobal(key: string, value: unknown) {
+  try {
+    (globalThis as Record<string, unknown>)[key] = value;
+  } catch {
+    Object.defineProperty(globalThis, key, {
+      configurable: true,
+      writable: true,
+      value,
+    });
+  }
+}
+
+setGlobal("window", w);
+setGlobal("document", w.document);
+setGlobal("navigator", w.navigator);
+setGlobal("localStorage", w.localStorage);
+setGlobal("HTMLElement", w.HTMLElement);
+setGlobal("Element", w.Element);
+setGlobal("Node", w.Node);
+setGlobal("SVGElement", w.SVGElement);
+setGlobal("MouseEvent", w.MouseEvent);
+setGlobal("Event", w.Event);
+setGlobal("CustomEvent", w.CustomEvent);
+setGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 0));
+setGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
 w.HTMLElement.prototype.scrollIntoView = () => {};
 if (!w.URL.createObjectURL) {
   w.URL.createObjectURL = () => "blob:mock";
   w.URL.revokeObjectURL = () => {};
 }
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+setGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 
 // 必须在 jsdom 全局就绪后再加载 React
 const React = require("react");

@@ -33,13 +33,19 @@ const throws = (name: string, fn: () => unknown, frag?: string) => {
 };
 
 // ---------- localStorage mock ----------
+// Node 22 较新版本带只读的实验性全局 localStorage，直接赋值会抛错，回退到 defineProperty
 const mem = new Map<string, string>();
-(globalThis as Record<string, unknown>).localStorage = {
+const localStorageMock = {
   getItem: (k: string) => (mem.has(k) ? mem.get(k)! : null),
   setItem: (k: string, v: string) => void mem.set(k, v),
   removeItem: (k: string) => void mem.delete(k),
   clear: () => mem.clear(),
 };
+try {
+  (globalThis as Record<string, unknown>).localStorage = localStorageMock;
+} catch {
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, writable: true, value: localStorageMock });
+}
 
 console.log("\n[1] 开设班次");
 throws("班次名称为空", () => createShift(EMPTY_STATE, { name: "  ", operator: "张工" }), "不能为空");
